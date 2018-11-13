@@ -16,7 +16,7 @@ example I/O connections to both the Serial port and the Quad SPI flash devices.
 
 To use:
 
-1. Arrange your design so that your I/O ports include those listed in the [flash_image.pcf) file.
+1. Arrange your design so that your I/O ports include those listed in the [pcf](flash_image.pcf) file.
 2. Place your binary image in the main directory
 3. Run make
 
