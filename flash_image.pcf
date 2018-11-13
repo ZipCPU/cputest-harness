@@ -1,11 +1,18 @@
-set_io i_clk R9			# 25MHz clock ?
-set_io o_ledg[0] C8
-set_io o_ledg[1] F7
-set_io o_ledr K9
+# Onboard clock
+set_io clk 129
+
+set_io o_done	        71
+
+set_io o_uart_tx	85
+set_io i_uart_rx	88
+
+set_io  o_qspi_csn  105
+set_io  o_qspi_sck   97
+set_io io_qspi[0]   102
+set_io io_qspi[1]    99
+set_io io_qspi[2]    98
+set_io io_qspi[3]    96
 
 
-set_io i_rts B8			#	i_rts
-set_io o_uart_tx A9		#	o_uart_tx
-set_io i_uart_rx A10		#	i_uart_rx
-set_io o_cts A11		#	o_cts
+
 
