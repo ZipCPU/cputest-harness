@@ -57,15 +57,17 @@ VERILATOR_ROOT ?= $(shell bash -c '$(VERILATOR) -V|grep VERILATOR_ROOT | head -1
 VINCD    := $(VERILATOR_ROOT)/include
 ASCFILE  := $(OBJDIR)/$(BASE).asc
 VERILOG  := $(OBJDIR)/$(BASE).v
+LIBFILE := $(OBJDIR)/V$(BASE)__ALL.a
 YOSYSD   := `which yosys | sed -e "s/bin\/yosys/share\/yosys/"`
 MAINCPP  := main
 SIMFILES := uartsim flashsim
 SIMSRCS  := $(addprefix $(CPPD)/,  $(addsuffix .cpp,$(MAINCPP) $(SIMFILES)))
 SIMHDRS  := $(wildcard $(CPPD)/*.h)
 SIMOBJS  := $(addprefix $(OBJDIR)/,$(addsuffix   .o,$(MAINCPP) $(SIMFILES)))
-ICEVFLG  := -s -n $(BASE)
-VFLAGS   := --top-module $(BASE) -cc
+ICEVFLG  := -sc -n $(BASE)
+VFLAGS   := -Wno-lint -Wno-fatal -Wno-style --top-module $(BASE) -cc
 INCS := -I $(VINCD) -I $(CPPD) -I $(OBJDIR)/
+CFLAGS := -g
 
 
 test: $(EXEFILE)
@@ -77,6 +79,8 @@ $(ASCFILE): $(BINFILE)
 
 $(VERILOG): $(ASCFILE) $(BASE).pcf
 	icebox_vlog $(ICEVFLG) $(PCFFILE) $(ASCFILE) > $(VERILOG)
+	sed -e 's/\\io_qspi/io_qspi/g' --in-place $(VERILOG)
+	sed -e 's/^tran.*;//g' --in-place $(VERILOG)
 
 $(OBJDIR)/V$(BASE).mk: $(VERILOG)
 	echo $(YOSYSD)/ice40/cells_sim.v
@@ -91,15 +95,15 @@ $(OBJDIR)/V$(BASE)__ALL.a:
 
 $(OBJDIR)/verilated.o: $(VINCD)/verilated.cpp
 	$(mk-objdir)
-	g++ -c -I $(VINCD) $< -o $*
+	g++ $(CFLAGS) -c -I $(VINCD) $< -o $(OBJDIR)/verilated.o
 
 $(OBJDIR)/%.o: $(CPPD)/%.cpp
 	$(mk-objdir)
-	g++ -c -I $(VINCD) -I $(CPPD) -I $(OBJDIR)/ $< -o $(OBJDIR)/$*.o
+	g++ $(CFLAGS) -c -I $(VINCD) -I $(CPPD) -I $(OBJDIR)/ $< -o $(OBJDIR)/$*.o
 
 $(EXEFILE): $(OBJDIR)/verilated.o $(OBJDIR)/V$(BASE)__ALL.a
 $(EXEFILE): $(SIMOBJS)
-	g++ -I $(VINCD) -I $(OBJDIR)/ -I $(CPPD) $(SIMOBJS) $(LIBFILE) $(OBJDIR)/verilated.o -o $*
+	g++ $(CFLAGS) -I $(VINCD) -I $(OBJDIR)/ -I $(CPPD) $(SIMOBJS) $(LIBFILE) $(OBJDIR)/verilated.o -o $(EXEFILE)
 
 define	build-depends
 	$(mk-objdir)
