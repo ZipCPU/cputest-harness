@@ -1,17 +1,17 @@
 # Onboard clock
-set_io clk 129
+set_io i_clk 35
 
-set_io o_done	        71
+set_io o_done	        27
 
-set_io o_uart_tx	85
-set_io i_uart_rx	88
+set_io o_uart_tx	9
+set_io i_uart_rx	6
 
-set_io  o_qspi_csn  105
-set_io  o_qspi_sck   97
-set_io io_qspi[0]   102
-set_io io_qspi[1]    99
-set_io io_qspi[2]    98
-set_io io_qspi[3]    96
+set_io  o_qspi_csn  16
+set_io  o_qspi_sck   15
+set_io io_qspi_dat[0]   14
+set_io io_qspi_dat[1]    17
+set_io io_qspi_dat[2]    12
+set_io io_qspi_dat[3]    13
 
 
 
