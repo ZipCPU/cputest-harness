@@ -117,6 +117,18 @@ void	FLASHSIM::load(const uint32_t offset, const char *data,
 	memcpy(&m_mem[moff], data, len);
 }
 
+bool	FLASHSIM::deep_sleep(void) const {
+
+	return (m_sreg & QSPIF_DEEP_POWER_DOWN_FLAG);
+} bool	FLASHSIM::deep_sleep(bool newval) {
+	if (newval)
+		m_sreg |= QSPIF_DEEP_POWER_DOWN_FLAG;
+	else
+		m_sreg &= ~QSPIF_DEEP_POWER_DOWN_FLAG;
+
+	return deep_sleep();
+}
+
 #define	QOREG(A)	m_oreg = ((m_oreg & (~0x0ff))|(A&0x0ff))
 
 int	FLASHSIM::operator()(const int csn, const int sck, const int dat) {
@@ -240,6 +252,9 @@ int	FLASHSIM::operator()(const int csn, const int sck, const int dat) {
 
 	// printf("PROCESS, COUNT = %d, IREG = %02x\n", m_count, m_ireg);
 	if (m_state == QSPIF_QUAD_READ_IDLE) {
+		// Cannot be in this state and deep power down
+		assert((m_sreg & QSPIF_DEEP_POWER_DOWN_FLAG)==0);
+
 		assert(quad_mode());
 		if (m_count == 24) {
 			if (m_debug) printf("QSPI: Entering from Quad-Read Idle to Quad-Read\n");
@@ -249,6 +264,9 @@ int	FLASHSIM::operator()(const int csn, const int sck, const int dat) {
 			m_state = QSPIF_QUAD_READ;
 		} m_oreg = 0;
 	} else if (m_state == QSPIF_DUAL_READ_IDLE) {
+		// Cannot be in this state and deep power down
+		assert((m_sreg & QSPIF_DEEP_POWER_DOWN_FLAG)==0);
+
 		assert(dual_mode());
 		if (m_count == 24) {
 			if (m_debug) printf("DSPI: Entering from Dual-Read Idle to Dual-Read\n");
@@ -262,7 +280,11 @@ int	FLASHSIM::operator()(const int csn, const int sck, const int dat) {
 		// printf("SFLASH-CMD = %02x\n", m_ireg & 0x0ff);
 		// Figure out what command we've been given
 		if (m_debug) printf("SPI FLASH CMD %02x\n", m_ireg&0x0ff);
-		switch(m_ireg & 0x0ff) {
+		if ((m_sreg & QSPIF_DEEP_POWER_DOWN_FLAG)&&((m_ireg & 0x0ff) != 0xab)) {
+			if (m_debug) {
+				printf("Design is in deep power down.  Flash command ignored\n");
+			}
+		} else switch(m_ireg & 0x0ff) {
 		case 0x01: // Write status register
 			if (2 !=(m_sreg & 0x203)) {
 				if (m_debug) printf("QSPI: WEL not set, cannot write status reg\n");

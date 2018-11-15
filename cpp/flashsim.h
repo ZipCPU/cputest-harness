@@ -95,6 +95,8 @@ public:
 	bool	write_protect(void) { return ((m_sreg & QSPIF_WEL_FLAG)==0); }
 	bool	write_in_progress(void) { return ((m_sreg | QSPIF_WIP_FLAG)!=0); }
 	bool	xip_mode(void) { return (QSPIF_QUAD_READ_IDLE == m_state); }
+	bool	deep_sleep(bool newval);
+	bool	deep_sleep(void) const;
 	bool	dual_mode(void) { return (m_mode == FM_DSPI); }
 	bool	quad_mode(void) { return (m_mode == FM_QSPI); }
 	void	debug(const bool dbg) { m_debug = dbg; }

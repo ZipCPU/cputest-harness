@@ -107,6 +107,8 @@ void	usage(void) {
 "\t	and type in any data of interest.  A port number of zero will\n"
 "\t	disable this capability.\n"
 "\n"
+"\t-p	Starts the flash in the deep power down mode\n"
+"\n"
 "\t-s <filename>	Creates a file of name <filename> and then dumps\n"
 "\t	a copy of all serial port output to it.  By default, no serial\n"
 "\t	port dump file will be created.\n"
@@ -236,6 +238,7 @@ public:
 
 	inline	bool	done(void) { return m_done; }
 	inline	void	load(const char *fname) { m_flash->load(fname); }
+	inline	bool	deep_sleep(bool v) { m_flash->deep_sleep(v); }
 };
 
 
@@ -246,11 +249,12 @@ int	main(int argc, char **argv) {
 	const char *	flash_filename = NULL,
 			*serialport_dump_filename = NULL,
 			*vcd_filename = NULL;
-	bool		verbose_flag = false, debug_flash = false;
+	bool		verbose_flag = false, debug_flash = false,
+			start_in_power_down = false;
 	int		opt;
 	unsigned	max_clocks = 0;
 
-	while((opt = getopt(argc, argv, "hb:c:d:fs:n:")) != -1) {
+	while((opt = getopt(argc, argv, "hb:c:d:fs:n:p")) != -1) {
 		switch(opt) {
 		case 'h':
 			usage();
@@ -270,8 +274,11 @@ int	main(int argc, char **argv) {
 		case 'm':
 			max_clocks = strtoul(optarg, NULL, 0);
 			break;
-		case 'p':
+		case 'n':
 			netport = atoi(optarg);
+			break;
+		case 'p':
+			start_in_power_down = true;
 			break;
 		case 's':
 			serialport_dump_filename = strdup(optarg);
@@ -306,6 +313,8 @@ int	main(int argc, char **argv) {
 		}
 		tb.load(flash_filename);
 	}
+
+	tb.deep_sleep(start_in_power_down);
 
 	if ((serialport_dump_filename)
 		&&(strlen(serialport_dump_filename)>0)) {
