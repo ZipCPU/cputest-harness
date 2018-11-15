@@ -322,6 +322,17 @@ int	FLASHSIM::operator()(const int csn, const int sck, const int dat) {
 			if (m_debug) printf("QSPI: READING CONFIGURATION REGISTER: %02x\n", m_creg);
 			QOREG(m_creg);
 			break;
+		case 0x50: // Clear flag status register
+			m_state = QSPIF_IDLE;
+			if (m_debug) printf("QSPI: CLEARING FLAG-STATUS REGISTER\n");
+			// This is a NOOP command
+			QOREG(0);
+			break;
+		case 0x70: // Read flag status register register
+			m_state = QSPIF_IDLE;
+			if (m_debug) printf("QSPI: READING FLAG-STATUS REGISTER\n");
+			QOREG(0);
+			break;
 		case 0x9f: // Read ID
 			m_state = QSPIF_RDID;
 			if (m_debug) printf("QSPI: READING ID, %02x\n", (DEVID>>24)&0x0ff);
@@ -385,7 +396,8 @@ int	FLASHSIM::operator()(const int csn, const int sck, const int dat) {
 		QOREG(0);
 		switch(m_state) {
 		case QSPIF_IDLE:
-			printf("TOO MANY CLOCKS from QUAD-IDLE, SPIF in IDLE\n");
+			if (m_debug)
+				printf("TOO MANY CLOCKS from QUAD-IDLE, SPIF in IDLE\n");
 			break;
 		case QSPIF_WRSR:
 			if (m_count == 16) {
