@@ -66,7 +66,7 @@ static	const unsigned	DEVID = 0x0115,
 	// tPP    = 1200 * MICROSECONDS,
 	// tSE    = 1500 * MILLISECONDS;
 
-FLASHSIM::FLASHSIM(const int lglen, bool debug) {
+FLASHSIM::FLASHSIM(const int lglen, bool debug) : m_debug(debug) {
 	m_membytes = (1<<lglen);
 	m_memmask = (m_membytes - 1);
 	m_mem = new char[m_membytes];
@@ -434,8 +434,12 @@ int	FLASHSIM::operator()(const int csn, const int sck, const int dat) {
 				m_addr = m_ireg & m_memmask;
 				if (m_debug) printf("READ, ADDR = %08x\n", m_addr);
 				assert((m_addr & (~(m_memmask)))==0);
+				if (m_debug) printf("MEM[%06x] = %02x\n",
+					m_addr, m_mem[m_addr]);
 				QOREG(m_mem[m_addr++]);
 			} else if ((m_count >= 40)&&(0 == (m_sreg&0x01))) {
+				if (m_debug) printf("MEM[%06x] = %02x\n",
+					m_addr, m_mem[m_addr]);
 				QOREG(m_mem[m_addr++]);
 			} else m_oreg = 0;
 			break;

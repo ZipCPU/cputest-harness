@@ -84,6 +84,8 @@ void	usage(void) {
 "\t-d <filename>.vcd   Dumps internal wire transitions to the .vcd file\n"
 "\t	for later viewing in GTKwave or other VCD viewer\n"
 "\n"
+"\t-f\tDebug the flash port\n"
+"\n"
 "\t-m <nclocks> Creates a maximum number of clock ticks before exiting.\n"
 "\t	The default is to run until the o_done output is set.  With this\n"
 "\t	option, the simulation will stop after <nclocks> have been\n"
@@ -126,7 +128,8 @@ public:
 	FLASHSIM	*m_flash;
 	bool		m_done;
 
-	TESTB(int baudclocks, int netport) : m_tickcount(0l) {
+	TESTB(int baudclocks, int netport, bool debug_flash=false)
+				: m_tickcount(0l) {
 		m_core = new Vflash_image;
 		if (netport != 0) {
 			m_net = new UARTSIM(netport);
@@ -136,7 +139,7 @@ public:
 		m_console = new UARTSIM(0);
 		m_console->setup(baudclocks);
 		m_done = false;
-		m_flash = new FLASHSIM(24);
+		m_flash = new FLASHSIM(24, debug_flash);
 
 		m_trace = NULL;
 		Verilated::traceEverOn(true);
@@ -232,11 +235,11 @@ int	main(int argc, char **argv) {
 	const char *	flash_filename = NULL,
 			*serialport_dump_filename = NULL,
 			*vcd_filename = NULL;
-	bool		verbose_flag = false;
+	bool		verbose_flag = false, debug_flash = false;
 	int		opt;
 	unsigned	max_clocks = 0;
 
-	while((opt = getopt(argc, argv, "hb:d:s:n:")) != -1) {
+	while((opt = getopt(argc, argv, "hb:d:fs:n:")) != -1) {
 		switch(opt) {
 		case 'h':
 			usage();
@@ -246,6 +249,9 @@ int	main(int argc, char **argv) {
 			break;
 		case 'd':
 			vcd_filename = strdup(optarg);
+			break;
+		case 'f':
+			debug_flash = true;
 			break;
 		case 'm':
 			max_clocks = strtoul(optarg, NULL, 0);
@@ -266,7 +272,7 @@ int	main(int argc, char **argv) {
 		}
 	}
 
-	TESTB		tb(baudclocks, netport);
+	TESTB		tb(baudclocks, netport, debug_flash);
 
 	if ((argv[1])&&(strlen(argv[1])>4)
 		&&(strcmp(&argv[1][strlen(argv[1])-4], ".bin")==0))
