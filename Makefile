@@ -131,7 +131,7 @@ define	mk-objdir
 endef
 
 clean:
-	rm -rf $(OBJDIR)
+	rm -rf $(OBJDIR) $(EXEFILE)
 
 ifneq	($(MAKECMDGOALS),clean)
 -include $(OBJDIR)/depends.txt
