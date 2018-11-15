@@ -46,6 +46,8 @@ BINFILE :=  $(BASE).bin
 PCFFILE := -p $(BASE).pcf
 EXEFILE := $(BASE)_tb
 #
+all: $(EXEFILE)
+#
 #
 #
 .DELETE_ON_ERROR:
@@ -65,7 +67,7 @@ SIMSRCS  := $(addprefix $(CPPD)/,  $(addsuffix .cpp,$(MAINCPP) $(SIMFILES)))
 SIMHDRS  := $(wildcard $(CPPD)/*.h)
 SIMOBJS  := $(addprefix $(OBJDIR)/,$(addsuffix   .o,$(MAINCPP) $(SIMFILES)))
 ICEVFLG  := -sc -n $(BASE)
-VFLAGS   := -Wno-lint -Wno-fatal -Wno-style --top-module $(BASE) -cc
+VFLAGS   := -Wno-fatal --trace -top-module $(BASE) -cc
 INCS := -I $(VINCD) -I $(CPPD) -I $(OBJDIR)/
 CFLAGS := -g
 
@@ -97,13 +99,17 @@ $(OBJDIR)/verilated.o: $(VINCD)/verilated.cpp
 	$(mk-objdir)
 	g++ $(CFLAGS) -c -I $(VINCD) $< -o $(OBJDIR)/verilated.o
 
+$(OBJDIR)/verilated_vcd_c.o: $(VINCD)/verilated_vcd_c.cpp
+	$(mk-objdir)
+	g++ $(CFLAGS) -c -I $(VINCD) $< -o $(OBJDIR)/verilated_vcd_c.o
+
 $(OBJDIR)/%.o: $(CPPD)/%.cpp
 	$(mk-objdir)
 	g++ $(CFLAGS) -c -I $(VINCD) -I $(CPPD) -I $(OBJDIR)/ $< -o $(OBJDIR)/$*.o
 
 $(EXEFILE): $(OBJDIR)/verilated.o $(OBJDIR)/V$(BASE)__ALL.a
-$(EXEFILE): $(SIMOBJS)
-	g++ $(CFLAGS) -I $(VINCD) -I $(OBJDIR)/ -I $(CPPD) $(SIMOBJS) $(LIBFILE) $(OBJDIR)/verilated.o -o $(EXEFILE)
+$(EXEFILE): $(OBJDIR)/verilated_vcd_c.o $(SIMOBJS) $(LIBFILE)
+	g++ $(CFLAGS) -I $(VINCD) -I $(OBJDIR)/ -I $(CPPD) $(SIMOBJS) $(LIBFILE) $(OBJDIR)/verilated.o $(OBJDIR)/verilated_vcd_c.o -o $(EXEFILE)
 
 define	build-depends
 	$(mk-objdir)

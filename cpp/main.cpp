@@ -53,6 +53,7 @@
 #include <signal.h>
 #include <ctype.h>
 #include "verilated.h"
+#include "verilated_vcd_c.h"
 #include "Vflash_image.h"
 #include "uartsim.h"
 #include "flashsim.h"
@@ -80,6 +81,9 @@ void	usage(void) {
 "\t-b\tUse the optional -b argument to change the number of clock ticks\n"
 "\t\tper baud interval.\n"
 "\n"
+"\t-d <filename>.vcd   Dumps internal wire transitions to the .vcd file\n"
+"\t	for later viewing in GTKwave or other VCD viewer\n"
+"\n"
 "\t-m <nclocks> Creates a maximum number of clock ticks before exiting.\n"
 "\t	The default is to run until the o_done output is set.  With this\n"
 "\t	option, the simulation will stop after <nclocks> have been\n"
@@ -98,8 +102,8 @@ void	usage(void) {
 "\t	disable this capability.\n"
 "\n"
 "\t-s <filename>	Creates a file of name <filename> and then dumps\n"
-"\t	a copy of all serial port output to it.  By default, no dump file\n"
-"\t	will be created.\n"
+"\t	a copy of all serial port output to it.  By default, no serial\n"
+"\t	port dump file will be created.\n"
 "\n"
 "\t[flash_file.bin] is the name of an (optional) binary flash image\n"
 "\t    containing the information that would be found on the flash,\n"
@@ -116,7 +120,7 @@ void	usage(void) {
 class TESTB {
 public:
 	Vflash_image	*m_core;
-	// VerilatedVcdC*	m_trace;
+	VerilatedVcdC*	m_trace;
 	uint64_t	m_tickcount;
 	UARTSIM		*m_net, *m_console;
 	FLASHSIM	*m_flash;
@@ -134,8 +138,8 @@ public:
 		m_done = false;
 		m_flash = new FLASHSIM(24);
 
-		// m_trace = NULL;
-		// Verilated::traceEverOn(true);
+		m_trace = NULL;
+		Verilated::traceEverOn(true);
 		m_core->i_clk = 0;
 		eval(); // Get our initial values set properly.
 	}
@@ -154,23 +158,19 @@ public:
 	}
 
 	virtual	void	opentrace(const char *vcdname) {
-		/*
 		if (!m_trace) {
 			m_trace = new VerilatedVcdC;
 			m_core->trace(m_trace, 99);
 			m_trace->open(vcdname);
 		}
-		*/
 	}
 
 	virtual	void	closetrace(void) {
-		/*
 		if (m_trace) {
 			m_trace->close();
 			delete m_trace;
 			m_trace = NULL;
 		}
-		*/
 	}
 
 	virtual	void	eval(void) {
@@ -186,24 +186,22 @@ public:
 		// logic depends.  This forces that logic to be recalculated
 		// before the top of the clock.
 		eval();
-		// if (m_trace) m_trace->dump((vluint64_t)(10*m_tickcount-2));
+		if (m_trace) m_trace->dump((vluint64_t)(10*m_tickcount-2));
 		m_core->i_clk = 1;
 		eval();
-		// if (m_trace) m_trace->dump((vluint64_t)(10*m_tickcount));
+		if (m_trace) m_trace->dump((vluint64_t)(10*m_tickcount));
 		m_core->io_qspi_dat = (*m_flash)(m_core->o_qspi_csn,
 				m_core->o_qspi_sck,
 				m_core->io_qspi_dat);
 		eval();
-		// if (m_trace) m_trace->dump((vluint64_t)(10*m_tickcount+2));
+		if (m_trace) m_trace->dump((vluint64_t)(10*m_tickcount+2));
 		m_core->i_clk = 0;
 		eval();
 
-		/*
 		if (m_trace) {
 			m_trace->dump((vluint64_t)(10*m_tickcount+5));
 			m_trace->flush();
 		}
-		*/
 
 		if (m_net) {
 			m_core->i_uart_rx = (*m_net)(m_core->o_uart_tx);
@@ -232,18 +230,22 @@ int	main(int argc, char **argv) {
 	int		netport = DEF_NETPORT;
 	unsigned	baudclocks = DEF_BAUDCLOCKS;
 	const char *	flash_filename = NULL,
-			*serialport_dump_filename = NULL;
+			*serialport_dump_filename = NULL,
+			*vcd_filename = NULL;
 	bool		verbose_flag = false;
 	int		opt;
 	unsigned	max_clocks = 0;
 
-	while((opt = getopt(argc, argv, "hb:s:n:")) != -1) {
+	while((opt = getopt(argc, argv, "hb:d:s:n:")) != -1) {
 		switch(opt) {
 		case 'h':
 			usage();
 			exit(EXIT_SUCCESS);
 		case 'b':
 			baudclocks = atoi(optarg);
+			break;
+		case 'd':
+			vcd_filename = strdup(optarg);
 			break;
 		case 'm':
 			max_clocks = strtoul(optarg, NULL, 0);
@@ -293,6 +295,9 @@ int	main(int argc, char **argv) {
 		}
 		tb.dump(fp);
 	}
+
+	if (vcd_filename != NULL)
+		tb.opentrace(vcd_filename);
 
 	tb.eval();
 	if (max_clocks > 0) {
