@@ -66,7 +66,7 @@
 
 
 void	usage(void) {
-	fprintf(stderr, "USAGE: main [-h] [-n port] [-b baud-clocks] [flash_file.bin]\n");
+	fprintf(stderr, "USAGE: main [-h] [options] [flash_file.bin]\n");
 	fprintf(stderr, "\n"
 "\n"
 "\tSimulates a (compiled-in, Verilated) FPGA design having only a serial\n"
@@ -80,6 +80,11 @@ void	usage(void) {
 "\t-b\tUse the optional -b argument to change the number of clock ticks\n"
 "\t\tper baud interval.\n"
 "\n"
+"\t-m <nclocks> Creates a maximum number of clock ticks before exiting.\n"
+"\t	The default is to run until the o_done output is set.  With this\n"
+"\t	option, the simulation will stop after <nclocks> have been\n"
+"\t	completed.\n"
+"\n"
 "\t-n <port> Sets the TCP/IP port number for the simulated serial port\n"
 "\t    I/O.\n"
 "\n"
@@ -90,6 +95,10 @@ void	usage(void) {
 "\t	%% telnet localhost %d\n"
 "\n"
 "\t	and type in any data of interest.\n"
+"\n"
+"\t-s <filename>	Creates a file of name <filename> and then dumps\n"
+"\t	a copy of all serial port output to it.  By default, no dump file\n"
+"\t	will be created.\n"
 "\n"
 "\t[flash_file.bin] is the name of an (optional) binary flash image\n"
 "\t    containing the information that would be found on the flash,\n"
@@ -114,9 +123,12 @@ public:
 
 	TESTB(int baudclocks, int netport) : m_tickcount(0l) {
 		m_core = new Vflash_image;
-		m_net = new UARTSIM(netport);
+		if (netport != 0) {
+			m_net = new UARTSIM(netport);
+			m_net->setup(baudclocks);
+		} else
+			m_net = NULL;
 		m_console = new UARTSIM(0);
-		m_net->setup(baudclocks);
 		m_console->setup(baudclocks);
 		m_done = false;
 		m_flash = new FLASHSIM(24);
@@ -131,6 +143,11 @@ public:
 		closetrace();
 		delete m_core;
 		m_core = NULL;
+	}
+
+	void	dump(FILE *fp) {
+		// Record all serial-port output to a file
+		m_console->dump(fp);
 	}
 
 	virtual	void	opentrace(const char *vcdname) {
@@ -185,8 +202,11 @@ public:
 		}
 		*/
 
-		m_core->i_uart_rx = (*m_net)(m_core->o_uart_tx);
-		(*m_console)(m_core->o_uart_tx);
+		if (m_net) {
+			m_core->i_uart_rx = (*m_net)(m_core->o_uart_tx);
+			(*m_console)(m_core->o_uart_tx);
+		} else
+			m_core->i_uart_rx = (*m_console)(m_core->o_uart_tx);
 
 		m_core->io_qspi_dat = (*m_flash)(m_core->o_qspi_sck,
 				m_core->o_qspi_csn,
@@ -208,10 +228,13 @@ int	main(int argc, char **argv) {
 	Verilated::commandArgs(argc, argv);
 	int		netport = DEF_NETPORT;
 	unsigned	baudclocks = DEF_BAUDCLOCKS;
-	const char *	flash_filename = "";
+	const char *	flash_filename = NULL,
+			*serialport_dump_filename = NULL;
+	bool		verbose_flag = false;
 	int		opt;
+	unsigned	max_clocks = 0;
 
-	while((opt = getopt(argc, argv, "hb:n:")) != -1) {
+	while((opt = getopt(argc, argv, "hb:s:n:")) != -1) {
 		switch(opt) {
 		case 'h':
 			usage();
@@ -219,8 +242,17 @@ int	main(int argc, char **argv) {
 		case 'b':
 			baudclocks = atoi(optarg);
 			break;
+		case 'm':
+			max_clocks = strtoul(optarg, NULL, 0);
+			break;
 		case 'p':
 			netport = atoi(optarg);
+			break;
+		case 's':
+			serialport_dump_filename = strdup(optarg);
+			break;
+		case 'v':
+			verbose_flag = true;
 			break;
 		default:
 			fprintf(stderr, "ERR: invalid usage\n");
@@ -235,6 +267,8 @@ int	main(int argc, char **argv) {
 		&&(strcmp(&argv[1][strlen(argv[1])-4], ".bin")==0))
 		flash_filename = argv[1];
 	if ((flash_filename)&&(flash_filename[0])) {
+		if (verbose_flag)
+			printf("Loading flash image from %s\n", flash_filename);
 		if (access(flash_filename, R_OK) != 0) {
 			fprintf(stderr, "Cannot read flash image, %s\n",
 				flash_filename);
@@ -243,8 +277,31 @@ int	main(int argc, char **argv) {
 		tb.load(flash_filename);
 	}
 
+	if ((serialport_dump_filename)
+		&&(strlen(serialport_dump_filename)>0)) {
+		if (verbose_flag)
+			printf("Forwarding serial-port output to %s\n",
+				serialport_dump_filename);
+		FILE	*fp = fopen(serialport_dump_filename, "w");
+		if (!fp) {
+			fprintf(stderr, "ERR: Could not open %s for writing\n",
+				serialport_dump_filename);
+			exit(EXIT_FAILURE);
+		}
+		tb.dump(fp);
+	}
+
 	tb.eval();
-	while(!tb.done())
-		tb.tick();
+	if (max_clocks > 0) {
+		for(unsigned clock_ticks=0;
+			clock_ticks < max_clocks; clock_ticks++) {
+			if (tb.done())
+				break;
+			tb.tick();
+		}
+	} else {
+		while(!tb.done())
+			tb.tick();
+	}
 }
 

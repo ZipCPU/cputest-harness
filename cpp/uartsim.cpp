@@ -93,6 +93,7 @@ void	UARTSIM::setup_listener(const int port) {
 
 UARTSIM::UARTSIM(const int port) {
 	m_conrd = m_conwr = m_skt = -1;
+	m_dumpfp = NULL;
 	if (port == 0) {
 		m_conrd = STDIN_FILENO;
 		m_conwr = STDOUT_FILENO;
@@ -103,6 +104,12 @@ UARTSIM::UARTSIM(const int port) {
 	m_tx_baudcounter = 0;
 	m_rx_state = RXIDLE;
 	m_tx_state = TXIDLE;
+}
+
+// dump
+// Dump characters sent to the output port to the given file stream
+void	UARTSIM::dump(FILE *fp) {
+	m_dumpfp = fp;
 }
 
 void	UARTSIM::kill(void) {
@@ -179,6 +186,8 @@ int	UARTSIM::rawtick(const int i_tx, const bool network) {
 			if (m_conwr >= 0) {
 				char	buf[1];
 				buf[0] = (m_rx_data >> (32-m_nbits-m_nstop-m_nparity))&0x0ff;
+				if (m_dumpfp)
+					fputc(buf[0], m_dumpfp);
 				if ((network)&&(1 != send(m_conwr, buf, 1, 0))) {
 					close(m_conwr);
 					m_conrd = m_conwr = -1;

@@ -64,6 +64,12 @@ class	UARTSIM	{
 	//	m_conrd is the file descriptor to read from
 	//	m_conwr is the file descriptor to write to
 	int	m_skt, m_conrd, m_conwr;
+
+	//
+	// And a file descriptor for a log file, dumping only the outputs
+	// to the log
+	FILE	*m_dumpfp;
+
 	//
 	// The m_setup register is the 29'bit control register used within
 	// the core.
@@ -104,6 +110,11 @@ public:
 	// localhost to listen in on.  Once started, connections may be made
 	// to this port to get the output from the port.
 	UARTSIM(const int port);
+
+	//
+	// Call the dump() method with a file pointer in order to send the
+	// output results to the given file.
+	void	dump(FILE *fp);
 
 	// kill() closes any active connection and the socket.  Once killed,
 	// no further output will be sent to the port.

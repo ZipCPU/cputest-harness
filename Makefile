@@ -41,7 +41,7 @@
 all:
 #
 BASE    :=  flash_image
-all: $(EXEFILE) test
+all: $(EXEFILE)
 BINFILE :=  $(BASE).bin
 PCFFILE := -p $(BASE).pcf
 EXEFILE := $(BASE)_tb
@@ -71,7 +71,7 @@ CFLAGS := -g
 
 
 test: $(EXEFILE)
-	./$(EXEFILE)
+	./$(EXEFILE) $(BINFILE)
 
 $(ASCFILE): $(BINFILE)
 	$(mk-objdir)
