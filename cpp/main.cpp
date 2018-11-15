@@ -60,7 +60,7 @@
 
 #define	VBASE		Vflash_image
 #define	BAUDRATE_HZ	115200
-#define	CLOCKRATE_HZ	50000000
+#define	CLOCKRATE_HZ	12000000
 #define	CLOCKRATE_MHZ	(CLOCKRATE_HZ/1e6)
 #define	DEF_BAUDCLOCKS	((int)(0.5 + CLOCKRATE_HZ / (double)BAUDRATE_HZ))
 #define	DEF_NETPORT	9136	// Drawn from urandom
@@ -80,6 +80,10 @@ void	usage(void) {
 "\n"
 "\t-b\tUse the optional -b argument to change the number of clock ticks\n"
 "\t\tper baud interval.\n"
+"\n"
+"\t-c <clockrate_hz>   Sets the assumed clock rate.  Useful for getting\n"
+"\t	valid time measurements in VCD, and for setting the baud rate\n"
+"\t	if baud clocks is not given.\n"
 "\n"
 "\t-d <filename>.vcd   Dumps internal wire transitions to the .vcd file\n"
 "\t	for later viewing in GTKwave or other VCD viewer\n"
@@ -123,13 +127,14 @@ class TESTB {
 public:
 	Vflash_image	*m_core;
 	VerilatedVcdC*	m_trace;
-	uint64_t	m_tickcount;
+	uint64_t	m_time_ns;
 	UARTSIM		*m_net, *m_console;
 	FLASHSIM	*m_flash;
 	bool		m_done;
+	uint64_t	m_clock_period_ns;
 
 	TESTB(int baudclocks, int netport, bool debug_flash=false)
-				: m_tickcount(0l) {
+				: m_time_ns(0l) {
 		m_core = new Vflash_image;
 		if (netport != 0) {
 			m_net = new UARTSIM(netport);
@@ -145,6 +150,8 @@ public:
 		Verilated::traceEverOn(true);
 		m_core->i_clk = 0;
 		eval(); // Get our initial values set properly.
+
+		m_clock_period_ns = (uint64_t)(1.e9/CLOCKRATE_HZ);
 	}
 
 	virtual ~TESTB(void) {
@@ -158,6 +165,10 @@ public:
 	void	dump(FILE *fp) {
 		// Record all serial-port output to a file
 		m_console->dump(fp);
+	}
+
+	void	clockrate(int clockrate_hz) {
+		m_clock_period_ns = (uint64_t)(1.e9 / clockrate_hz);
 	}
 
 	virtual	void	opentrace(const char *vcdname) {
@@ -181,7 +192,7 @@ public:
 	}
 
 	virtual	void	tick(void) {
-		m_tickcount++;
+		m_time_ns += m_clock_period_ns;
 
 		// Make sure we have our evaluations straight before the top
 		// of the clock.  This is necessary since some of the 
@@ -189,20 +200,20 @@ public:
 		// logic depends.  This forces that logic to be recalculated
 		// before the top of the clock.
 		eval();
-		if (m_trace) m_trace->dump((vluint64_t)(10*m_tickcount-2));
+		if (m_trace) m_trace->dump((vluint64_t)(m_time_ns-2));
 		m_core->i_clk = 1;
 		eval();
-		if (m_trace) m_trace->dump((vluint64_t)(10*m_tickcount));
+		if (m_trace) m_trace->dump((vluint64_t)(m_time_ns));
 		m_core->io_qspi_dat = (*m_flash)(m_core->o_qspi_csn,
 				m_core->o_qspi_sck,
 				m_core->io_qspi_dat);
 		eval();
-		if (m_trace) m_trace->dump((vluint64_t)(10*m_tickcount+2));
+		if (m_trace) m_trace->dump((vluint64_t)(m_time_ns+2));
 		m_core->i_clk = 0;
 		eval();
 
 		if (m_trace) {
-			m_trace->dump((vluint64_t)(10*m_tickcount+5));
+			m_trace->dump((vluint64_t)(m_time_ns+m_clock_period_ns/2));
 			m_trace->flush();
 		}
 
@@ -219,8 +230,8 @@ public:
 		m_done = (m_done) || m_core->o_done;
 	}
 
-	unsigned long	tickcount(void) {
-		return m_tickcount;
+	unsigned long	time_ns(void) {
+		return m_time_ns;
 	}
 
 	inline	bool	done(void) { return m_done; }
@@ -231,7 +242,7 @@ public:
 int	main(int argc, char **argv) {
 	Verilated::commandArgs(argc, argv);
 	int		netport = DEF_NETPORT;
-	unsigned	baudclocks = DEF_BAUDCLOCKS;
+	unsigned	baudclocks = 0, clockrate_hz = 0;
 	const char *	flash_filename = NULL,
 			*serialport_dump_filename = NULL,
 			*vcd_filename = NULL;
@@ -239,13 +250,16 @@ int	main(int argc, char **argv) {
 	int		opt;
 	unsigned	max_clocks = 0;
 
-	while((opt = getopt(argc, argv, "hb:d:fs:n:")) != -1) {
+	while((opt = getopt(argc, argv, "hb:c:d:fs:n:")) != -1) {
 		switch(opt) {
 		case 'h':
 			usage();
 			exit(EXIT_SUCCESS);
 		case 'b':
 			baudclocks = atoi(optarg);
+			break;
+		case 'c':
+			clockrate_hz = strtoul(optarg, NULL, 0);
 			break;
 		case 'd':
 			vcd_filename = strdup(optarg);
@@ -271,6 +285,11 @@ int	main(int argc, char **argv) {
 			exit(EXIT_FAILURE);
 		}
 	}
+
+	if (clockrate_hz == 0)
+		clockrate_hz = CLOCKRATE_HZ; // The default
+	if (baudclocks == 0)
+		baudclocks = DEF_BAUDCLOCKS;
 
 	TESTB		tb(baudclocks, netport, debug_flash);
 
@@ -302,8 +321,10 @@ int	main(int argc, char **argv) {
 		tb.dump(fp);
 	}
 
-	if (vcd_filename != NULL)
+	if (vcd_filename != NULL) {
 		tb.opentrace(vcd_filename);
+		tb.clockrate(clockrate_hz);
+	}
 
 	tb.eval();
 	if (max_clocks > 0) {
