@@ -190,8 +190,8 @@ public:
 		m_core->i_clk = 1;
 		eval();
 		// if (m_trace) m_trace->dump((vluint64_t)(10*m_tickcount));
-		m_core->io_qspi_dat = (*m_flash)(m_core->o_qspi_sck,
-				m_core->o_qspi_csn,
+		m_core->io_qspi_dat = (*m_flash)(m_core->o_qspi_csn,
+				m_core->o_qspi_sck,
 				m_core->io_qspi_dat);
 		eval();
 		// if (m_trace) m_trace->dump((vluint64_t)(10*m_tickcount+2));
@@ -211,8 +211,8 @@ public:
 		} else
 			m_core->i_uart_rx = (*m_console)(m_core->o_uart_tx);
 
-		m_core->io_qspi_dat = (*m_flash)(m_core->o_qspi_sck,
-				m_core->o_qspi_csn,
+		m_core->io_qspi_dat = (*m_flash)(m_core->o_qspi_csn,
+				m_core->o_qspi_sck,
 				m_core->io_qspi_dat);
 
 		m_done = (m_done) || m_core->o_done;
