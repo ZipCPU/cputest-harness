@@ -20,7 +20,7 @@
 //
 // This file is part of the CPU Test-Harness project.
 //
-// The WB-HyperRAM controller project is free software (firmware): you can
+// The CPU Test-Harness project is free software (firmware): you can
 // redistribute it and/or modify it under the terms of the GNU Lesser General
 // Public License as published by the Free Software Foundation, either version
 // 3 of the License, or (at your option) any later version.

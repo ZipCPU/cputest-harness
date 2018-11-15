@@ -27,3 +27,5 @@ core
 *.ps
 *.yslog
 *.smt2
+*.bin
+*legal.txt

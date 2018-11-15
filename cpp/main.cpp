@@ -21,7 +21,7 @@
 //
 // This file is part of the CPU Test-Harness project.
 //
-// The WB-HyperRAM controller project is free software (firmware): you can
+// The CPU Test-Harness project is free software (firmware): you can
 // redistribute it and/or modify it under the terms of the GNU Lesser General
 // Public License as published by the Free Software Foundation, either version
 // 3 of the License, or (at your option) any later version.
@@ -94,7 +94,8 @@ void	usage(void) {
 "\n"
 "\t	%% telnet localhost %d\n"
 "\n"
-"\t	and type in any data of interest.\n"
+"\t	and type in any data of interest.  A port number of zero will\n"
+"\t	disable this capability.\n"
 "\n"
 "\t-s <filename>	Creates a file of name <filename> and then dumps\n"
 "\t	a copy of all serial port output to it.  By default, no dump file\n"
@@ -142,6 +143,8 @@ public:
 	virtual ~TESTB(void) {
 		closetrace();
 		delete m_core;
+		delete m_console;
+		delete m_net;
 		m_core = NULL;
 	}
 
